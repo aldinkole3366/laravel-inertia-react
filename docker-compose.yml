@@ -1,0 +1,77 @@
+version: '3'
+services:
+  #PHP Service
+  app:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile
+    image: flighcomp_image
+    container_name: flightcomp
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+      - ./:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - flightcomp-network
+
+  #Nginx Service
+  webserver:
+    image: nginx:latest
+    container_name: flightcomp_server
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8090:80"
+      - "443:443"
+    volumes:
+      - ./:/var/www
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - flightcomp-network
+
+  #MySQL Service
+  db:
+    image: mysql:8.0
+    container_name: flightcomp_mysql
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3310:3306"
+    environment:
+      MYSQL_DATABASE: flightcomp
+      MYSQL_ROOT_PASSWORD: test12345
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - dbdata:/var/lib/mysql/
+      - ./mysql/my.cnf:/etc/mysql/my.cnf
+    networks:
+      - flightcomp-network
+
+  # PhpMyAdmin docker setup image
+  phpmyadmin:
+      image: phpmyadmin/phpmyadmin
+      container_name: flightcomp_phpmyadmin
+      links:
+          - db
+      environment:
+          PMA_HOST: flightcomp_mysql
+          PMA_PORT: 3306
+          UPLOAD_LIMIT: 512M
+      ports:
+          - 8091:80
+      networks:
+          - flightcomp-network
+#Docker Networks
+networks:
+  flightcomp-network:
+    driver: bridge
+#Volumes
+volumes:
+  dbdata:
+    driver: local
